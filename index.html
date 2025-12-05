@@ -10,11 +10,24 @@
       padding: 20px;
       text-align: center;
     }
+    .video-container {
+      position: relative;
+      display: inline-block;
+    }
     video {
       width: 100%;
       max-width: 400px;
       border: 1px solid #ccc;
-      margin-bottom: 10px;
+    }
+    #overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 250px;
+      height: 150px;
+      border: 3px solid blue;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
     }
     table {
       margin: 20px auto;
@@ -40,22 +53,30 @@
 <body>
   <h2>📷 Escaneie o código de barras</h2>
   <button onclick="ativarCamera()">Ativar câmera</button>
-  <video id="video" autoplay muted playsinline></video>
+  <button onclick="desligarCamera()">Desligar câmera</button>
+
+  <div class="video-container">
+    <video id="video" autoplay muted playsinline></video>
+    <div id="overlay"></div>
+  </div>
+
   <div id="erro"></div>
 
   <table id="tabela">
     <thead>
-      <tr><th>Código</th></tr>
+      <tr><th>Código</th><th>Ação</th></tr>
     </thead>
     <tbody></tbody>
   </table>
-  <button onclick="baixarCSV()">Exportar para Excel</button>
+
+  <button onclick="baixarTXT()">Exportar para Bloco de Notas</button>
 
   <script>
     const codeReader = new ZXing.BrowserBarcodeReader();
     const videoElement = document.getElementById('video');
     const tabelaBody = document.querySelector('#tabela tbody');
     const erroDiv = document.getElementById('erro');
+    const overlay = document.getElementById('overlay');
     let codigos = [];
     let cameraAtiva = false;
 
@@ -68,12 +89,30 @@
           if (!codigos.includes(codigo)) {
             codigos.push(codigo);
             const linha = document.createElement('tr');
-            const celula = document.createElement('td');
-            celula.textContent = codigo;
-            linha.appendChild(celula);
+
+            const celulaCodigo = document.createElement('td');
+            celulaCodigo.textContent = codigo;
+
+            const celulaBotao = document.createElement('td');
+            const botaoApagar = document.createElement('button');
+            botaoApagar.textContent = "🗑️ Apagar";
+            botaoApagar.onclick = () => {
+              codigos = codigos.filter(c => c !== codigo);
+              linha.remove();
+            };
+
+            celulaBotao.appendChild(botaoApagar);
+            linha.appendChild(celulaCodigo);
+            linha.appendChild(celulaBotao);
             tabelaBody.appendChild(linha);
           }
+
+          overlay.style.borderColor = "green";
+          setTimeout(() => {
+            overlay.style.borderColor = "blue";
+          }, 1000);
         }
+
         if (err && !(err instanceof ZXing.NotFoundException)) {
           erroDiv.textContent = "Erro ao acessar a câmera. Verifique as permissões.";
         }
@@ -82,13 +121,20 @@
       });
     }
 
-    function baixarCSV() {
-      // Exporta os códigos como texto (com aspas) para evitar notação científica no Excel
-      let csv = "Código\n" + codigos.map(c => `"${c}"`).join("\n");
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    function desligarCamera() {
+      if (videoElement.srcObject) {
+        videoElement.srcObject.getTracks().forEach(track => track.stop());
+        videoElement.srcObject = null;
+        cameraAtiva = false;
+      }
+    }
+
+    function baixarTXT() {
+      let texto = codigos.join("\n");
+      const blob = new Blob([texto], { type: 'text/plain;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = 'codigos.csv';
+      link.download = 'codigos.txt';
       link.click();
     }
   </script>
